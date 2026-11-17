@@ -1,0 +1,60 @@
+
+name: OpenSim Clean Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install OpenSim
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "opensim==4.6"
+
+      - name: Test native OpenSim
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import platform
+          import opensim as osim
+
+          print("OpenSim version:", osim.GetVersion())
+
+          model = osim.Model()
+          state = model.initSystem()
+
+          result = {
+              "status": "PASS",
+              "opensim_version": osim.GetVersion(),
+              "platform": platform.platform(),
+              "model_initialized": True,
+              "state_variables": state.getNY(),
+              "simulation_advanced": False
+          }
+
+          with open("result.json", "w") as f:
+              json.dump(result, f, indent=2)
+
+          print(json.dumps(result, indent=2))
+          PY
+
+      - name: Save test result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opensim-test-result
+          path: result.json
+          if-no-files-found: warn
